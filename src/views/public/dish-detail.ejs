@@ -1,0 +1,14 @@
+<%- include('../partials/head', { title: dish.name }) %>
+<main class="container narrow">
+  <p><a href="/dishes">← Danh sách món ăn</a></p>
+  <h1><%= dish.name %></h1>
+  <table class="table detail">
+    <tr><th>Mô tả</th><td><%= dish.description || '—' %></td></tr>
+    <tr><th>Giá</th><td><%= formatPrice(dish.price) %></td></tr>
+    <tr><th>Danh mục</th><td><%= dish.category || '—' %></td></tr>
+    <tr><th>Tình trạng</th><td><span class="badge <%= dish.available ? 'ok' : 'off' %>"><%= dish.available ? 'Còn bán' : 'Hết món' %></span></td></tr>
+    <tr><th>Đầu bếp</th><td><%= dish.chef ? dish.chef.name + (dish.chef.specialty ? ' (' + dish.chef.specialty + ')' : '') : '—' %></td></tr>
+    <tr><th>Nguyên liệu</th><td><%= dish.ingredients.length ? dish.ingredients.map(i => i.name + ' (' + i.unit + ')').join(', ') : '—' %></td></tr>
+  </table>
+</main>
+<%- include('../partials/foot') %>

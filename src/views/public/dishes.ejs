@@ -1,0 +1,25 @@
+<%- include('../partials/head', { title: 'Món ăn' }) %>
+<main class="container">
+  <h1>Danh sách món ăn</h1>
+  <form method="get" action="/dishes" class="search">
+    <input type="text" name="q" value="<%= q %>" placeholder="Tìm theo tên món...">
+    <button class="btn">Tìm</button>
+    <% if (q) { %><a href="/dishes">Xóa tìm kiếm</a><% } %>
+  </form>
+  <% if (!dishes.length) { %>
+    <p class="muted">Không có món nào<%= q ? ` khớp với "${q}"` : '' %>.</p>
+  <% } else { %>
+    <div class="grid">
+      <% dishes.forEach(d => { %>
+        <article class="card">
+          <h3><a href="/dishes/<%= d.id %>"><%= d.name %></a></h3>
+          <p class="price"><%= formatPrice(d.price) %></p>
+          <p class="muted"><%= d.category || 'Chưa phân loại' %><%= d.chef ? ' · ' + d.chef.name : '' %></p>
+          <span class="badge <%= d.available ? 'ok' : 'off' %>"><%= d.available ? 'Còn bán' : 'Hết món' %></span>
+          <p><a href="/dishes/<%= d.id %>">Xem chi tiết →</a></p>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</main>
+<%- include('../partials/foot') %>

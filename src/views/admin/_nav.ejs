@@ -1,0 +1,5 @@
+<nav class="subnav">
+  <% navResources.forEach(n => { %>
+    <a href="/admin/<%= n.key %>" class="<%= active === n.key ? 'active' : '' %>"><%= n.title %></a>
+  <% }) %>
+</nav>

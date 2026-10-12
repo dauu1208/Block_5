@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= locals.title ? title + ' · ' : '' %>Nhà hàng</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/dishes">NHÀ HÀNG</a>
+  <nav>
+    <a href="/dishes">Món ăn</a>
+    <% if (role === 'admin') { %><a href="/admin/dishes">Quản trị</a><% } %>
+    <% if (role) { %>
+      <span class="role-tag">Role: <%= role %></span>
+      <form method="post" action="/logout" class="inline"><button class="link-btn">Đăng xuất</button></form>
+    <% } else { %>
+      <a href="/login">Đăng nhập</a>
+    <% } %>
+  </nav>
+</header>

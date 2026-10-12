@@ -1,0 +1,31 @@
+<%- include('../partials/head', { title: 'Quản trị ' + r.title }) %>
+<main class="container">
+  <%- include('_nav', { active: r.key }) %>
+  <div class="row-between">
+    <h1><%= r.title %></h1>
+    <a class="btn" href="/admin/<%= r.key %>/new">+ Thêm <%= r.singular %></a>
+  </div>
+  <% if (flash) { %><div class="alert success"><%= flash %></div><% } %>
+  <% if (!rows.length) { %>
+    <p class="muted">Chưa có dữ liệu.</p>
+  <% } else { %>
+    <table class="table">
+      <thead>
+        <tr><th>#</th><% r.columns.forEach(c => { %><th><%= c.label %></th><% }) %><th>Thao tác</th></tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(row => { %>
+          <tr>
+            <td><%= row.id %></td>
+            <% r.columns.forEach(c => { %><td><%= c.value(row) %></td><% }) %>
+            <td class="actions">
+              <a href="/admin/<%= r.key %>/<%= row.id %>/edit">Sửa</a>
+              <a class="danger" href="/admin/<%= r.key %>/<%= row.id %>/delete">Xóa</a>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</main>
+<%- include('../partials/foot') %>

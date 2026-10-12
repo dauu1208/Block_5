@@ -1,0 +1,11 @@
+<%- include('partials/head', { title: 'Đăng nhập' }) %>
+<main class="container narrow">
+  <h1>Đăng nhập</h1>
+  <p class="muted">Không cần mật khẩu, chỉ chọn role.</p>
+  <% if (error) { %><div class="alert error"><%= error %></div><% } %>
+  <form method="post" action="/login" class="role-form">
+    <button class="btn" name="role" value="user">Vào với role User</button>
+    <button class="btn btn-red" name="role" value="admin">Vào với role Admin</button>
+  </form>
+</main>
+<%- include('partials/foot') %>
