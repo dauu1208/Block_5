@@ -102,7 +102,8 @@ Object.values(resources).forEach((r) => {
     asyncHandler(async (req, res, next) => {
       const record = await findRecord(r, req.params.id);
       if (!record) return next();
-      res.render('admin/confirm-delete', { r, record });
+      const blockReason = r.blockDelete ? await r.blockDelete(record) : null;
+      res.render('admin/confirm-delete', { r, record, blockReason });
     })
   );
 
@@ -111,6 +112,10 @@ Object.values(resources).forEach((r) => {
     asyncHandler(async (req, res, next) => {
       const record = await findRecord(r, req.params.id);
       if (!record) return next();
+      const blockReason = r.blockDelete ? await r.blockDelete(record) : null;
+      if (blockReason) {
+        return res.status(409).render('admin/confirm-delete', { r, record, blockReason });
+      }
       await record.destroy();
       res.redirect(303, `/admin${base}?success=deleted`);
     })

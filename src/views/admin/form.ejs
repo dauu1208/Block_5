@@ -18,7 +18,7 @@
             <textarea id="<%= f.name %>" name="<%= f.name %>" rows="4"><%= v %></textarea>
           <% } else if (f.type === 'select') { %>
             <select id="<%= f.name %>" name="<%= f.name %>">
-              <option value="">— Không chọn —</option>
+              <option value=""><%= f.placeholder || '— Không chọn —' %></option>
               <% options[f.name].forEach(o => { %>
                 <option value="<%= o.value %>" <%= String(v) === o.value ? 'selected' : '' %>><%= o.label %></option>
               <% }) %>

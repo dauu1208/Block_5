@@ -39,9 +39,9 @@ const dishes = {
     { name: 'name', label: 'Tên món *', type: 'text', hint: `${LIMITS.name.min}-${LIMITS.name.max} ký tự, không trùng món khác` },
     { name: 'description', label: 'Mô tả', type: 'textarea', hint: `Tối đa ${LIMITS.description.max} ký tự` },
     { name: 'price', label: 'Giá (VNĐ) *', type: 'text', inputmode: 'numeric', hint: `Số nguyên từ ${LIMITS.price.min.toLocaleString('vi-VN')} đến ${LIMITS.price.max.toLocaleString('vi-VN')}` },
-    { name: 'category', label: 'Danh mục *', type: 'select' },
+    { name: 'category', label: 'Danh mục *', type: 'select', placeholder: '— Chọn danh mục —' },
     { name: 'available', label: 'Còn bán', type: 'checkbox' },
-    { name: 'chefId', label: 'Đầu bếp', type: 'select' },
+    { name: 'chefId', label: 'Đầu bếp *', type: 'select', placeholder: '— Chọn đầu bếp —' },
     { name: 'ingredientIds', label: 'Nguyên liệu', type: 'multiselect' },
   ],
   async loadOptions() {
@@ -95,14 +95,14 @@ const dishes = {
     if (!category) errors.category = 'Vui lòng chọn danh mục';
     else if (!CATEGORIES.includes(category)) errors.category = 'Danh mục không hợp lệ';
 
-    // Đầu bếp: tùy chọn, nhưng nếu chọn thì phải tồn tại
+    // Đầu bếp: BẮT BUỘC chọn, và phải tồn tại
     let chefId = null;
-    if (chefIdRaw) {
-      if (!/^\d{1,9}$/.test(chefIdRaw) || !(await Chef.findByPk(Number(chefIdRaw)))) {
-        errors.chefId = 'Đầu bếp không tồn tại';
-      } else {
-        chefId = Number(chefIdRaw);
-      }
+    if (!chefIdRaw) {
+      errors.chefId = 'Vui lòng chọn đầu bếp';
+    } else if (!/^\d{1,9}$/.test(chefIdRaw) || !(await Chef.findByPk(Number(chefIdRaw)))) {
+      errors.chefId = 'Đầu bếp không tồn tại';
+    } else {
+      chefId = Number(chefIdRaw);
     }
 
     // Nguyên liệu: nếu chọn thì phải tồn tại
@@ -162,6 +162,13 @@ const chefs = {
     return {};
   },
   toValues: (r) => ({ name: r.name, specialty: r.specialty || '' }),
+  // Trả về lý do không được xóa (hoặc null nếu xóa được)
+  async blockDelete(record) {
+    const n = await Dish.count({ where: { chefId: record.id } });
+    return n
+      ? `Không thể xóa: đầu bếp này đang phụ trách ${n} món. Hãy đổi đầu bếp của các món đó trước.`
+      : null;
+  },
   async parse(body) {
     const errors = {};
     const name = clean(body.name);
@@ -192,7 +199,7 @@ const ingredients = {
   ],
   fields: [
     { name: 'name', label: 'Tên nguyên liệu *', type: 'text', hint: `${LIMITS.ingredientName.min}-${LIMITS.ingredientName.max} ký tự, không trùng nguyên liệu khác` },
-    { name: 'unit', label: 'Đơn vị *', type: 'select' },
+    { name: 'unit', label: 'Đơn vị *', type: 'select', placeholder: '— Chọn đơn vị —' },
   ],
   async loadOptions() {
     return { unit: toOptions(UNITS) };

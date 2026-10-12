@@ -27,7 +27,7 @@ const { sequelize, Dish, Chef, Ingredient } = require('../src/models');
 
   const phoBo = await Dish.create({ name: 'Phở bò', description: 'Phở bò nước dùng hầm xương 12 tiếng.', price: 65000, category: 'Món chính', available: true, chefId: an.id });
   const spaghetti = await Dish.create({ name: 'Spaghetti sốt cà', description: 'Mì Ý sốt cà chua tươi.', price: 89000, category: 'Món chính', available: true, chefId: binh.id });
-  await Dish.create({ name: 'Trứng chiên hành', description: 'Món ăn nhanh.', price: 30000, category: 'Khai vị', available: false });
+  await Dish.create({ name: 'Trứng chiên hành', description: 'Món ăn nhanh.', price: 30000, category: 'Khai vị', available: false, chefId: an.id });
 
   await phoBo.setIngredients([ing[0], ing[1], ing[2]]);
   await spaghetti.setIngredients([ing[3], ing[4]]);

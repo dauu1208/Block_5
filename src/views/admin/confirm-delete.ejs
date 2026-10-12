@@ -2,12 +2,17 @@
 <main class="container narrow">
   <%- include('_nav', { active: r.key }) %>
   <h1>Xác nhận xóa</h1>
-  <div class="alert error">
-    Bạn chắc chắn muốn xóa <%= r.singular %> <strong><%= r.label(record) %></strong>? Thao tác không thể hoàn tác.
-  </div>
-  <form method="post" action="/admin/<%= r.key %>/<%= record.id %>?_method=DELETE" class="form-actions">
-    <button class="btn btn-red">Xóa</button>
-    <a href="/admin/<%= r.key %>">Hủy</a>
-  </form>
+  <% if (blockReason) { %>
+    <div class="alert error"><strong><%= r.label(record) %></strong>: <%= blockReason %></div>
+    <p><a class="btn" href="/admin/<%= r.key %>">Quay lại danh sách</a></p>
+  <% } else { %>
+    <div class="alert error">
+      Bạn chắc chắn muốn xóa <%= r.singular %> <strong><%= r.label(record) %></strong>? Thao tác không thể hoàn tác.
+    </div>
+    <form method="post" action="/admin/<%= r.key %>/<%= record.id %>?_method=DELETE" class="form-actions">
+      <button class="btn btn-red">Xóa</button>
+      <a href="/admin/<%= r.key %>">Hủy</a>
+    </form>
+  <% } %>
 </main>
 <%- include('../partials/foot') %>
