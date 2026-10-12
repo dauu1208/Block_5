@@ -34,6 +34,7 @@
             <input type="text" id="<%= f.name %>" name="<%= f.name %>" value="<%= v %>" <%= f.inputmode ? `inputmode=${f.inputmode}` : '' %>>
           <% } %>
         <% } %>
+        <% if (f.hint) { %><small class="muted"><%= f.hint %></small><% } %>
         <% if (errors[f.name]) { %><small class="error-text"><%= errors[f.name] %></small><% } %>
       </div>
     <% }) %>

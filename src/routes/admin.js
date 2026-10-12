@@ -63,7 +63,7 @@ Object.values(resources).forEach((r) => {
   router.post(
     base,
     asyncHandler(async (req, res) => {
-      const { errors, values, data } = await r.parse(req.body);
+      const { errors, values, data } = await r.parse(req.body, null);
       if (Object.keys(errors).length) {
         return renderForm(res, r, { values, errors, status: 400 });
       }
@@ -87,7 +87,7 @@ Object.values(resources).forEach((r) => {
     asyncHandler(async (req, res, next) => {
       const record = await findRecord(r, req.params.id);
       if (!record) return next();
-      const { errors, values, data } = await r.parse(req.body);
+      const { errors, values, data } = await r.parse(req.body, record);
       if (Object.keys(errors).length) {
         return renderForm(res, r, { record, values, errors, status: 400 });
       }

@@ -1,10 +1,21 @@
 // Cấu hình CRUD cho 3 model. Mỗi resource mô tả: cột trong bảng, field trong form,
 // cách validate dữ liệu (parse) và cách lưu thêm quan hệ (afterSave).
+const { Sequelize, Op } = require('sequelize');
 const { Dish, Chef, Ingredient } = require('../models');
 const { formatPrice } = require('../utils/format');
+const { UNITS, CATEGORIES, LIMITS } = require('../constants');
 
 const raw = (v) => (typeof v === 'string' ? v : '');
-const trim = (v) => raw(v).trim();
+// gọn khoảng trắng thừa: "  Phở   bò " -> "Phở bò"
+const clean = (v) => raw(v).trim().replace(/\s+/g, ' ');
+const toOptions = (list) => list.map((x) => ({ value: x, label: x }));
+
+// Tên đã tồn tại chưa (không phân biệt hoa/thường, bỏ qua chính bản ghi đang sửa)
+async function nameTaken(model, name, ignoreId) {
+  const conds = [Sequelize.where(Sequelize.fn('lower', Sequelize.col('name')), name.toLowerCase())];
+  if (ignoreId) conds.push({ id: { [Op.ne]: ignoreId } });
+  return !!(await model.findOne({ where: { [Op.and]: conds } }));
+}
 
 const dishes = {
   key: 'dishes',
@@ -25,10 +36,10 @@ const dishes = {
     { label: 'Đầu bếp', value: (r) => (r.chef ? r.chef.name : '—') },
   ],
   fields: [
-    { name: 'name', label: 'Tên món', type: 'text' },
-    { name: 'description', label: 'Mô tả', type: 'textarea' },
-    { name: 'price', label: 'Giá (VNĐ)', type: 'text', inputmode: 'decimal' },
-    { name: 'category', label: 'Danh mục', type: 'text' },
+    { name: 'name', label: 'Tên món *', type: 'text', hint: `${LIMITS.name.min}-${LIMITS.name.max} ký tự, không trùng món khác` },
+    { name: 'description', label: 'Mô tả', type: 'textarea', hint: `Tối đa ${LIMITS.description.max} ký tự` },
+    { name: 'price', label: 'Giá (VNĐ) *', type: 'text', inputmode: 'numeric', hint: `Số nguyên từ ${LIMITS.price.min.toLocaleString('vi-VN')} đến ${LIMITS.price.max.toLocaleString('vi-VN')}` },
+    { name: 'category', label: 'Danh mục *', type: 'select' },
     { name: 'available', label: 'Còn bán', type: 'checkbox' },
     { name: 'chefId', label: 'Đầu bếp', type: 'select' },
     { name: 'ingredientIds', label: 'Nguyên liệu', type: 'multiselect' },
@@ -39,6 +50,7 @@ const dishes = {
       Ingredient.findAll({ order: [['name', 'ASC']] }),
     ]);
     return {
+      category: toOptions(CATEGORIES),
       chefId: chefs.map((c) => ({ value: String(c.id), label: c.name })),
       ingredientIds: ingredients.map((i) => ({ value: String(i.id), label: `${i.name} (${i.unit})` })),
     };
@@ -54,25 +66,36 @@ const dishes = {
       ingredientIds: (r.ingredients || []).map((i) => String(i.id)),
     };
   },
-  async parse(body) {
+  async parse(body, record) {
     const errors = {};
-    const name = trim(body.name);
-    const description = trim(body.description);
-    const category = trim(body.category);
-    const priceRaw = trim(body.price);
-    const chefIdRaw = trim(body.chefId);
+    const name = clean(body.name);
+    const description = raw(body.description).trim();
+    const category = raw(body.category).trim();
+    const priceRaw = raw(body.price).trim();
+    const chefIdRaw = raw(body.chefId).trim();
     const ingredientIds = [].concat(body.ingredientIds ?? []).map(String).filter(Boolean);
 
+    // Tên: bắt buộc, 2-120 ký tự, không trùng
     if (!name) errors.name = 'Tên món là bắt buộc';
-    else if (name.length > 120) errors.name = 'Tên món tối đa 120 ký tự';
+    else if (name.length < LIMITS.name.min || name.length > LIMITS.name.max)
+      errors.name = `Tên món phải từ ${LIMITS.name.min} đến ${LIMITS.name.max} ký tự`;
+    else if (await nameTaken(Dish, name, record && record.id)) errors.name = 'Tên món đã tồn tại';
 
-    if (description.length > 1000) errors.description = 'Mô tả tối đa 1000 ký tự';
-    if (category.length > 60) errors.category = 'Danh mục tối đa 60 ký tự';
+    if (description.length > LIMITS.description.max)
+      errors.description = `Mô tả tối đa ${LIMITS.description.max} ký tự`;
 
+    // Giá: bắt buộc, số nguyên trong khoảng cho phép
     const price = Number(priceRaw);
     if (priceRaw === '') errors.price = 'Giá là bắt buộc';
-    else if (!Number.isFinite(price) || price < 0 || price >= 1e10) errors.price = 'Giá phải là số từ 0 trở lên';
+    else if (!/^\d+$/.test(priceRaw)) errors.price = 'Giá phải là số nguyên, không có dấu chấm, phẩy hay chữ';
+    else if (price < LIMITS.price.min || price > LIMITS.price.max)
+      errors.price = `Giá phải từ ${LIMITS.price.min.toLocaleString('vi-VN')} đến ${LIMITS.price.max.toLocaleString('vi-VN')} đ`;
 
+    // Danh mục: bắt buộc, chỉ nhận giá trị trong danh sách
+    if (!category) errors.category = 'Vui lòng chọn danh mục';
+    else if (!CATEGORIES.includes(category)) errors.category = 'Danh mục không hợp lệ';
+
+    // Đầu bếp: tùy chọn, nhưng nếu chọn thì phải tồn tại
     let chefId = null;
     if (chefIdRaw) {
       if (!/^\d{1,9}$/.test(chefIdRaw) || !(await Chef.findByPk(Number(chefIdRaw)))) {
@@ -82,6 +105,7 @@ const dishes = {
       }
     }
 
+    // Nguyên liệu: nếu chọn thì phải tồn tại
     if (ingredientIds.some((id) => !/^\d{1,9}$/.test(id))) {
       errors.ingredientIds = 'Nguyên liệu không hợp lệ';
     } else if (ingredientIds.length) {
@@ -97,7 +121,7 @@ const dishes = {
         name: raw(body.name),
         description: raw(body.description),
         price: raw(body.price),
-        category: raw(body.category),
+        category,
         available: body.available === 'on',
         chefId: chefIdRaw,
         ingredientIds,
@@ -106,7 +130,7 @@ const dishes = {
         name,
         description: description || null,
         price,
-        category: category || null,
+        category,
         available: body.available === 'on',
         chefId,
         ingredientIds: [...new Set(ingredientIds.map(Number))],
@@ -131,8 +155,8 @@ const chefs = {
     { label: 'Chuyên môn', value: (r) => r.specialty || '—' },
   ],
   fields: [
-    { name: 'name', label: 'Tên đầu bếp', type: 'text' },
-    { name: 'specialty', label: 'Chuyên môn', type: 'text' },
+    { name: 'name', label: 'Tên đầu bếp *', type: 'text', hint: `${LIMITS.name.min}-${LIMITS.name.max} ký tự` },
+    { name: 'specialty', label: 'Chuyên môn', type: 'text', hint: `Tối đa ${LIMITS.specialty.max} ký tự` },
   ],
   async loadOptions() {
     return {};
@@ -140,11 +164,12 @@ const chefs = {
   toValues: (r) => ({ name: r.name, specialty: r.specialty || '' }),
   async parse(body) {
     const errors = {};
-    const name = trim(body.name);
-    const specialty = trim(body.specialty);
+    const name = clean(body.name);
+    const specialty = clean(body.specialty);
     if (!name) errors.name = 'Tên đầu bếp là bắt buộc';
-    else if (name.length > 120) errors.name = 'Tên tối đa 120 ký tự';
-    if (specialty.length > 120) errors.specialty = 'Chuyên môn tối đa 120 ký tự';
+    else if (name.length < LIMITS.name.min || name.length > LIMITS.name.max)
+      errors.name = `Tên phải từ ${LIMITS.name.min} đến ${LIMITS.name.max} ký tự`;
+    if (specialty.length > LIMITS.specialty.max) errors.specialty = `Chuyên môn tối đa ${LIMITS.specialty.max} ký tự`;
     return {
       errors,
       values: { name: raw(body.name), specialty: raw(body.specialty) },
@@ -166,24 +191,28 @@ const ingredients = {
     { label: 'Đơn vị', value: (r) => r.unit },
   ],
   fields: [
-    { name: 'name', label: 'Tên nguyên liệu', type: 'text' },
-    { name: 'unit', label: 'Đơn vị (kg, g, lít, quả...)', type: 'text' },
+    { name: 'name', label: 'Tên nguyên liệu *', type: 'text', hint: `${LIMITS.ingredientName.min}-${LIMITS.ingredientName.max} ký tự, không trùng nguyên liệu khác` },
+    { name: 'unit', label: 'Đơn vị *', type: 'select' },
   ],
   async loadOptions() {
-    return {};
+    return { unit: toOptions(UNITS) };
   },
   toValues: (r) => ({ name: r.name, unit: r.unit }),
-  async parse(body) {
+  async parse(body, record) {
     const errors = {};
-    const name = trim(body.name);
-    const unit = trim(body.unit);
+    const name = clean(body.name);
+    const unit = raw(body.unit).trim();
     if (!name) errors.name = 'Tên nguyên liệu là bắt buộc';
-    else if (name.length > 120) errors.name = 'Tên tối đa 120 ký tự';
-    if (!unit) errors.unit = 'Đơn vị là bắt buộc';
-    else if (unit.length > 30) errors.unit = 'Đơn vị tối đa 30 ký tự';
+    else if (name.length < LIMITS.ingredientName.min || name.length > LIMITS.ingredientName.max)
+      errors.name = `Tên phải từ ${LIMITS.ingredientName.min} đến ${LIMITS.ingredientName.max} ký tự`;
+    else if (await nameTaken(Ingredient, name, record && record.id)) errors.name = 'Nguyên liệu này đã tồn tại';
+
+    if (!unit) errors.unit = 'Vui lòng chọn đơn vị';
+    else if (!UNITS.includes(unit)) errors.unit = `Đơn vị phải là một trong: ${UNITS.join(', ')}`;
+
     return {
       errors,
-      values: { name: raw(body.name), unit: raw(body.unit) },
+      values: { name: raw(body.name), unit },
       data: { name, unit },
     };
   },
